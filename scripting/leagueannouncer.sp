@@ -8,7 +8,7 @@
 
 #pragma newdecls required
 
-#define PL_VERSION "1.0.0"
+#define PL_VERSION "0.8.9"
 
 public Plugin myinfo =
 {
@@ -37,11 +37,10 @@ Handle g_ckiTeam;
 ConVar g_cvDisabled;
 ConVar g_cvLeague;
 
-bool plDisabled;
+bool plDisabled = false;
 
 // Update player league information once a week
-//int updateInterval = 7 * 24 * 60 * 60;
-int updateInterval = 60;
+int updateInterval = 7 * 24 * 60 * 60;
 
 #define ETF2L_API "api.etf2l.org/player/"
 #define RGL_API ""
@@ -51,20 +50,22 @@ char API_URL[256] = ETF2L_API;
 
 public void OnPluginStart()
 {
+	HookEvent("player_connect_client", Event_PlayerConnect, EventHookMode_Pre);
+
 	// Initialize client cookies
 
 	g_ckiName = RegClientCookie
 	(
 		"leagueannouncer_name", 
 		"Use your league name in-game instead of Steam name",
-		CookieAccess_Public
+		CookieAccess_Private
 	);
 
 	g_ckiTeam = RegClientCookie
 	(
 		"leagueannouncer_team", 
 		"Choose which team name to use (6v6/9v9)",
-		CookieAccess_Protected
+		CookieAccess_Private
 	);
 
 	// Initialize ConVars
@@ -83,7 +84,6 @@ public void OnPluginStart()
 		"Query ETF2L (=0), RGL (=1) or OZF (=2) for player information", 
 		_, 
 		true, 0.0, true, 2.0
-
 	);
 
 	CreateConVar
@@ -98,19 +98,27 @@ public void OnPluginStart()
 	g_cvLeague.AddChangeHook(CVar_League);
 }
 
-public void OnConfigsExecuted()
-{
-
-}
-
 public void OnClientAuthorized(int client, const char[] auth)
 {
-	DataPack pack;
-	CreateDataTimer(TIME_COOKIES_CACHED, Timer_AreCookiesCached, pack);
+	if (!plDisabled && !StrEqual(auth, "BOT"))
+	{
+		DataPack pack;
+		CreateDataTimer(TIME_COOKIES_CACHED, Timer_AreCookiesCached, pack);
 
-	pack.WriteCell(client);
-	pack.WriteString(auth);
-	pack.Reset();
+		pack.WriteCell(client);
+		pack.WriteString(auth);
+		pack.Reset();
+	}
+	else
+	{
+		AnnouncePlayer(client, "", "");
+	}
+}
+
+public Action Event_PlayerConnect(Handle ev, const char[] name, bool dontBroadcast)
+{
+	SetEventBroadcast(ev, true);
+	return Plugin_Handled;
 }
 
 public void HttpResponseCallback(bool success, const char[] err, 
@@ -124,12 +132,14 @@ public void HttpResponseCallback(bool success, const char[] err,
 		char[] content = new char[response.ContentLength + 1];
 		response.GetContent(content, response.ContentLength + 1);
 
-		int code = response.StatusCode;
-		int time = response.TotalTime;
 		int client = req.Any;
+		int code = response.StatusCode;
 
+#if defined DEBUG
+		float time = response.TotalTime;
 		PrintToServer("Request to %s finished with code: %d in %.2f seconds", url, code, time);
 		PrintToServer("Reply: %s", content);
+#endif
 
 		char name[MAX_NAME_LENGTH];
 		char team[MAX_TEAM_LENGTH];
@@ -141,10 +151,12 @@ public void HttpResponseCallback(bool success, const char[] err,
 			SetClientCookie(client, g_ckiName, name);
 			SetClientCookie(client, g_ckiTeam, team);
 		}
+		
+		AnnouncePlayer(client, name, team);
 	}
 	else
 	{
-		PrintToServer("Error on request: %s", err);
+		LogError("Error on request: %s", err);
 	}
 }
 
@@ -208,7 +220,13 @@ public Action Timer_AreCookiesCached(Handle timer, Handle data)
 		}
 		else
 		{
+			char name[MAX_NAME_LENGTH];
+			char team[MAX_TEAM_LENGTH];
 
+			GetClientCookie(client, g_ckiName, name, sizeof(name));
+			GetClientCookie(client, g_ckiTeam, team, sizeof(team));
+
+			AnnouncePlayer(client, name, team);
 		}
 	}
 	else
@@ -318,8 +336,26 @@ void ParseTeam(char[] team, Handle obj)
 	}
 }
 
-void AnnouncePlayer(const char[] name, const char[] team)
+void AnnouncePlayer(int client, const char[] name, const char[] team)
 {
+	char realname[MAX_NAME_LENGTH];
+	GetClientName(client, realname, sizeof(realname));
 
-
+	if (strlen(name) != 0)
+	{
+		if (strlen(team) != 0)
+		{
+			MC_PrintToChatAll("{lightgreen}%s {default}({lightgreen}%s{default}, {lightgreen}%s{default}) \
+				has joined the game", realname, name, team);			   
+		}
+		else
+		{
+			MC_PrintToChatAll("{lightgreen}%s {default}({lightgreen}%s{default}) \
+				has joined the game", realname, name, team);			   
+		}
+	}
+	else
+	{
+		MC_PrintToChatAll("{lightgreen}%s {default}has joined the game", realname);
+	}
 }

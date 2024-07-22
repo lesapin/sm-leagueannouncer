@@ -20,7 +20,7 @@ public Plugin myinfo =
 };
 
 #define MAX_TEAM_LENGTH 64
-#define TIME_COOKIES_CACHED 2.0
+#define TIME_COOKIES_CACHED 3.0
 
 enum League
 {
@@ -40,7 +40,8 @@ ConVar g_cvLeague;
 bool plDisabled = false;
 
 // Update player league information once a week
-int updateInterval = 7 * 24 * 60 * 60;
+//int updateInterval = 7 * 24 * 60 * 60;
+int updateInterval = 60;
 
 #define ETF2L_API "api.etf2l.org/player/"
 #define RGL_API ""
@@ -345,17 +346,17 @@ void AnnouncePlayer(int client, const char[] name, const char[] team)
 	{
 		if (strlen(team) != 0)
 		{
-			MC_PrintToChatAll("{lightgreen}%s {default}({lightgreen}%s{default}, {lightgreen}%s{default}) \
+			MC_PrintToChatAll("{default}%s ({lightgreen}%s{default}, {lightgreen}%s{default}) \
 				has joined the game", realname, name, team);			   
 		}
 		else
 		{
-			MC_PrintToChatAll("{lightgreen}%s {default}({lightgreen}%s{default}) \
+			MC_PrintToChatAll("{default}%s ({lightgreen}%s{default}) \
 				has joined the game", realname, name);			   
 		}
 	}
 	else
 	{
-		MC_PrintToChatAll("{lightgreen}%s {default}has joined the game", realname);
+		MC_PrintToChatAll("{default}%s has joined the game", realname);
 	}
 }

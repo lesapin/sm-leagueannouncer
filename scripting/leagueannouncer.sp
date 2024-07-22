@@ -40,7 +40,8 @@ ConVar g_cvLeague;
 bool plDisabled = false;
 
 // Update player league information once a week
-int updateInterval = 7 * 24 * 60 * 60;
+//int updateInterval = 7 * 24 * 60 * 60;
+int updateInterval = 60;
 
 #define ETF2L_API "api.etf2l.org/player/"
 #define RGL_API ""
@@ -118,12 +119,17 @@ public void OnClientAuthorized(int client, const char[] auth)
 public Action Event_PlayerConnect(Handle ev, const char[] name, bool dontBroadcast)
 {
 	SetEventBroadcast(ev, true);
-	return Plugin_Handled;
+	return Plugin_Continue;
 }
 
 public void HttpResponseCallback(bool success, const char[] err, 
 	System2HTTPRequest req, System2HTTPResponse response, HTTPRequestMethod method)
 {
+	int client = req.Any;
+
+	char name[MAX_NAME_LENGTH];
+	char team[MAX_TEAM_LENGTH];
+
 	if (success)
 	{
 		char url[256];
@@ -132,7 +138,6 @@ public void HttpResponseCallback(bool success, const char[] err,
 		char[] content = new char[response.ContentLength + 1];
 		response.GetContent(content, response.ContentLength + 1);
 
-		int client = req.Any;
 		int code = response.StatusCode;
 
 #if defined DEBUG
@@ -141,9 +146,6 @@ public void HttpResponseCallback(bool success, const char[] err,
 		PrintToServer("Reply: %s", content);
 #endif
 
-		char name[MAX_NAME_LENGTH];
-		char team[MAX_TEAM_LENGTH];
-
 		if (code == 200)
 		{
 			ParsePlayerInformation(name, team, content);
@@ -151,13 +153,13 @@ public void HttpResponseCallback(bool success, const char[] err,
 			SetClientCookie(client, g_ckiName, name);
 			SetClientCookie(client, g_ckiTeam, team);
 		}
-		
-		AnnouncePlayer(client, name, team);
 	}
 	else
 	{
 		LogError("Error on request: %s", err);
 	}
+	
+	AnnouncePlayer(client, name, team);
 }
 
 void CVar_Disabled(ConVar cvar, char[] oldval, char[] newval)

@@ -40,8 +40,7 @@ ConVar g_cvLeague;
 bool plDisabled = false;
 
 // Update player league information once a week
-//int updateInterval = 7 * 24 * 60 * 60;
-int updateInterval = 60;
+int updateInterval = 7 * 24 * 60 * 60;
 
 #define ETF2L_API "api.etf2l.org/player/"
 #define RGL_API ""

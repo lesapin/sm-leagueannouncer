@@ -351,7 +351,7 @@ void AnnouncePlayer(int client, const char[] name, const char[] team)
 		else
 		{
 			MC_PrintToChatAll("{lightgreen}%s {default}({lightgreen}%s{default}) \
-				has joined the game", realname, name, team);			   
+				has joined the game", realname, name);			   
 		}
 	}
 	else

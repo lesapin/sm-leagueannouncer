@@ -207,7 +207,10 @@ public void HttpResponseCallback(bool success, const char[] err,
 	}
 	else
 	{
-		LogError("Error on request: %s", err);
+		char realname[MAX_NAME_LENGTH];
+		GetClientName(client, realname, sizeof(realname));
+
+		LogError("HttpResponseCallback Error (%s): %s", realname, err);
 	}
 	
 	AnnouncePlayer(client, name, team);

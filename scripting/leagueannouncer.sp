@@ -8,7 +8,7 @@
 
 #pragma newdecls required
 
-#define PL_VERSION "0.8.9"
+#define PL_VERSION "0.9.1"
 
 public Plugin myinfo =
 {
@@ -121,6 +121,59 @@ public Action Event_PlayerConnect(Handle ev, const char[] name, bool dontBroadca
 	return Plugin_Continue;
 }
 
+public Action Timer_AreCookiesCached(Handle timer, Handle data)
+{
+	DataPack pack = view_as<DataPack>(data);
+
+	char url[256];
+	char auth[64];
+
+	int client = pack.ReadCell();
+	pack.ReadString(auth, sizeof(auth));
+
+	strcopy(url, sizeof(url), API_URL);
+	StrCat(url, sizeof(url), auth);
+
+	System2HTTPRequest httpReq = new System2HTTPRequest
+	(
+		HttpResponseCallback,
+		url
+	);
+
+	httpReq.Timeout = 5;
+	httpReq.Any = client;
+	httpReq.SetHeader("Accept", "application/json");
+
+	if (AreClientCookiesCached(client))
+	{
+		int lastUpdate = GetClientCookieTime(client, g_ckiTeam);
+
+		if (GetTime() - lastUpdate > updateInterval)
+		{
+			PrintToServer("Updating player information");
+			httpReq.GET();
+		}
+		else
+		{
+			char name[MAX_NAME_LENGTH];
+			char team[MAX_TEAM_LENGTH];
+
+			GetClientCookie(client, g_ckiName, name, sizeof(name));
+			GetClientCookie(client, g_ckiTeam, team, sizeof(team));
+
+			AnnouncePlayer(client, name, team);
+		}
+	}
+	else
+	{
+		httpReq.GET();
+	}
+	
+	delete httpReq;
+	
+	return Plugin_Continue;
+}
+
 public void HttpResponseCallback(bool success, const char[] err, 
 	System2HTTPRequest req, System2HTTPResponse response, HTTPRequestMethod method)
 {
@@ -187,59 +240,6 @@ void CVar_League(ConVar cvar, char[] oldval, char[] newval)
 	}
 }
 
-public Action Timer_AreCookiesCached(Handle timer, Handle data)
-{
-	DataPack pack = view_as<DataPack>(data);
-
-	char url[256];
-	char auth[64];
-
-	int client = pack.ReadCell();
-	pack.ReadString(auth, sizeof(auth));
-
-	strcopy(url, sizeof(url), API_URL);
-	StrCat(url, sizeof(url), auth);
-
-	System2HTTPRequest httpReq = new System2HTTPRequest
-	(
-		HttpResponseCallback,
-		url
-	);
-
-	httpReq.Timeout = 5;
-	httpReq.Any = client;
-	httpReq.SetHeader("Accept", "application/json");
-
-	if (AreClientCookiesCached(client))
-	{
-		int lastUpdate = GetClientCookieTime(client, g_ckiTeam);
-
-		if (GetTime() - lastUpdate > updateInterval)
-		{
-			PrintToServer("Updating player information");
-			httpReq.GET();
-		}
-		else
-		{
-			char name[MAX_NAME_LENGTH];
-			char team[MAX_TEAM_LENGTH];
-
-			GetClientCookie(client, g_ckiName, name, sizeof(name));
-			GetClientCookie(client, g_ckiTeam, team, sizeof(team));
-
-			AnnouncePlayer(client, name, team);
-		}
-	}
-	else
-	{
-		httpReq.GET();
-	}
-	
-	delete httpReq;
-	
-	return Plugin_Continue;
-}
-
 bool ParsePlayerInformation(char[] name, char[] team, const char[] json)
 {
 	Handle obj = json_load(json);
@@ -297,7 +297,9 @@ bool ParsePlayerInformation(char[] name, char[] team, const char[] json)
 
 void ParseTeam(char[] team, Handle obj)
 {
-	for (int elem = 0; elem < json_array_size(obj); elem++)
+	char type[32];
+	
+	for (int elem = 0; elem < json_array_size(obj) && !StrEqual(type, "6v6"); elem++)
 	{
 		Handle entry = json_array_get(obj, elem);
 		Handle iter = json_object_iter(entry);
@@ -315,17 +317,7 @@ void ParseTeam(char[] team, Handle obj)
 			}
 			else if (StrEqual(key, "type"))
 			{
-				char type[32];
 				json_string_value(value, type, sizeof(type));
-
-				if (StrEqual(type, "6v6"))
-				{
-					delete value;
-					delete entry;
-					delete iter;
-
-					return;
-				}
 			}
 
 			delete value;

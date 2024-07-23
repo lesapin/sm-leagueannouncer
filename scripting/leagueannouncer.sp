@@ -150,7 +150,6 @@ public Action Timer_AreCookiesCached(Handle timer, Handle data)
 
 		if (GetTime() - lastUpdate > updateInterval)
 		{
-			PrintToServer("Updating player information");
 			httpReq.GET();
 		}
 		else

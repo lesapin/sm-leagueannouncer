@@ -333,6 +333,11 @@ void ParseTeam(char[] team, Handle obj)
 
 void AnnouncePlayer(int client, const char[] name, const char[] team)
 {
+	if (!IsClientConnected(client))
+	{
+		return;
+	}
+
 	char realname[MAX_NAME_LENGTH];
 	GetClientName(client, realname, sizeof(realname));
 

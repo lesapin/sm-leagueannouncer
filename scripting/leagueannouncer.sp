@@ -140,7 +140,7 @@ public Action Timer_AreCookiesCached(Handle timer, Handle data)
 		url
 	);
 
-	httpReq.Timeout = 5;
+	httpReq.Timeout = 10;
 	httpReq.Any = client;
 	httpReq.SetHeader("Accept", "application/json");
 
